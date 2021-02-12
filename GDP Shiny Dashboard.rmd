@@ -1,0 +1,143 @@
+---
+title: C02 emmissions (kt) and Life expectancy at birth, 1960
+Source: World Bank https://data.worldbank.org"
+output: 
+  flexdashboard::flex_dashboard:
+    runtime: shiny
+    orientation: row
+---
+
+```{r setup, include=FALSE}
+library(rnaturalearth)
+library(wbstats)
+library(leaflet)
+library(DT)
+library(ggplot2)
+library(flexdashboard)
+library(shiny)
+
+map <- ne_countries()
+names(map)[names(map) == "iso_a3"] <- "ISO3"
+names(map)[names(map) == "name"] <- "NAME"
+
+d <- wb(indicator = "EN.ATM.CO2E.KT",
+        startdate = 1960, enddate = 1960)
+d$value <- round(d$value)
+map$C02 <- d[match(map$ISO3, d$iso3), "value"]
+```
+
+Row 
+-------------------------------------
+### SLIDER   
+```{r}
+minvalue <- floor(min(map$C02, na.rm = TRUE))
+maxvalue <- ceiling(max(map$C02, na.rm = TRUE))
+
+sliderInput("rangevalues",
+            label = "C02 emmissions (kt)",
+            min = minvalue, max = maxvalue,
+            value = c(minvalue, maxvalue)
+)
+
+```    
+### MAP
+    
+```{r}
+pal <- colorBin(
+  palette = "viridis", domain = map$C02,
+  bins = seq(0, max(map$C02, na.rm = TRUE) + 10, by = max(map$C02, na.rm = TRUE)/10)
+)
+
+
+map$labels <- paste0(
+  "<strong> Country: </strong> ",
+  map$NAME, "<br/> ",
+  "<strong> C02: </strong> ",
+  map$C02, "<br/> "
+) %>%
+  lapply(htmltools::HTML)
+
+
+mapFiltered <- reactive({
+  rowsinrangeslider <- which(map$C02 >= input$rangevalues[1] &
+                               map$C02 <= input$rangevalues[2])
+  map[rowsinrangeslider, ]
+})
+
+renderLeaflet({
+  if (nrow(mapFiltered()) == 0) {
+    return(NULL)
+  }
+  
+  leaflet(mapFiltered()) %>%
+    addTiles() %>%
+    setView(lng = 0, lat = 30, zoom = 2) %>%
+    addPolygons(
+      fillColor = ~ pal(C02),
+      color = "white",
+      fillOpacity = 0.7,
+      label = ~labels,
+      highlight = highlightOptions(
+        color = "black",
+        bringToFront = TRUE
+      )
+    ) %>%
+    leaflet::addLegend(
+      pal = pal, values = ~C02,
+      opacity = 0.7, title = "C02"
+    )
+})
+```
+   
+Row {.tabset .tabset-fade}
+-------------------------------------
+   
+### Table C02
+  
+```{r}
+renderDT({
+  DT::datatable(mapFiltered()@data[, c("ISO3", "NAME", "C02")],
+                rownames = FALSE, options = list(pageLength = 10)
+  )
+})
+
+```   
+
+### Histogram C02
+    
+```{r}
+renderPlot({
+  ggplot(data = mapFiltered()@data, aes(x = C02)) +
+    geom_histogram()})
+```
+
+### Table Life expectancy
+
+```{r}
+library(rnaturalearth)
+newmap <- ne_countries()
+names(newmap)[names(newmap) == "iso_a3"] <- "ISO3"
+names(newmap)[names(newmap) == "name"] <- "NAME"
+
+library(wbstats)
+newindicators <- wbsearch(pattern = "Life expectancy at birth")
+
+all <- wb(indicator = "SP.DYN.LE00.IN",
+        startdate = 1960, enddate = 1960)
+all$value <- round(all$value)
+
+newmap$LE00 <- all(newmap$ISO3, all$iso3c, "value")
+
+library(DT)
+
+  DT::datatable(newmap@data[, c("ISO3", "NAME", "LE00")],
+                rownames = FALSE, options = list(pageLength = 10)
+  )
+```
+
+### Histogram Life expectancy
+
+```{r}
+library (ggplot2)
+ggplot(data = newmap@data, aes(x= LE00))+geom_bar()
+```
