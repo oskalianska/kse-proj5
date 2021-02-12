@@ -1,6 +1,6 @@
-setwd("/Users/olena.skalianska/Desktop/KSE-Homework/Business Intelligence and Data Visualizations/Day 3 R/")
+setwd("/Users/...R/")
 
-D_A <- read.csv("/Users/olena.skalianska/Desktop/KSE-Homework/Business Intelligence and Data Visualizations/Day 3 R/train.csv")
+D_A <- read.csv("/Users/..train.csv")
 
 dim(D_A)              #Show the size of the table
 data_size <- dim(D_A) #Create a variable with dimensions of the data table
